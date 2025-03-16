@@ -1,55 +1,52 @@
 # SparkUI learning
 
-## У першому коді ми спостерігаємо 5 jobs
+## In the first code, we observe 5 jobs
+- Job 0 consists of a single stage, which includes three tasks:
+    - Scanning the CSV file with Spark
+    - Optimizing SQL into bytecode
+    - Applying transformations to all partitions
+- Job 1 also consists of a single stage, which includes four tasks:
+    - Scanning the CSV file
+    - Deserializing it into DataFrame objects (as Rows)
+    - Executing the Spark SQL query as an RDD
+    - Applying transformations to all partitions
+- Job 2 also consists of a single stage, which includes the same three tasks as in Job 0, but they are not as low-level in Java since our Python code is executed.
+    - Scanning the CSV file
+    - Optimizing SQL into bytecode
+    - Applying transformations to all partitions
+    - We see that a Shuffle Write occurred for the next job
+- Job 3 skips a stage that was already executed in the previous job. We see that the data read from the disk was written by the previous job.
+    - Data exchange operation between partitions on different execution nodes
+    - Optimization: Instead of executing each operation separately, Spark generates a single optimized Java code block
+    - Shuffle process: Moving data between nodes. After this, Spark rearranges the rows so that - all identical categories are in the same partition
+    - Again, we see data written to disk for the next job
+- Job 4 skips two stages, reading data from the disk that was written by the previous job.
+    - Adaptive partition balancing
+    - Optimization: Generation of adaptive Java code
+    - Internal partition optimization
 
-- Job 0 складається з одного Stage, яка складається з трьох Tasks:	 
-    - Сканування csv файлу спарком
-	- Оптимізації SQL в байт код
-	- Затросування трансформацій до всіх патрицій
-- Job 1 теж складається з одного Stage, яка складається з 4-х Tasks
-	- Сканування scv файлу
-	- десеріалізує їх у об'єкти DataFrame (у вигляді Row)
-	- виконання Spark SQL-запиту у вигляді RDD
-	- Затросування трансформацій до всіх патрицій
-- Job 2 теж складається з одного Stage, яка складається з трьох Tasks таких самих як і в Job 0 проте вони не такі низкорівневі в java, а виконується наш python-код. 
- 	- Сканування csv файлу
-	- Оптимізації SQL в байт код
-	- Затросування трансформацій до всіх патрицій
-    - Бачимо що відбувся Shuffle Write для наступнтої job
-- Job 3 ми спостерішаємо вже пропущену стадію, яка була виконана в попередньому job І ми бачимо прочитані дані з диску, які були записані попереднім job. 
- 	- Операція обміну даними між partitions на різних виконавчих узлах. 
-    - Оптимізація. Замість того, щоб виконувати кожну операцію окремо, Spark генерує єдиний оптимізований Java код. 
-    - Процес shuffle переміщення даних між узлами. Після цього Spark переміщає рядки так, щоб всі однакові категорії були в одній partition.
-    - І знову бачимо запис даних на диск для наступтох job 
-- Job 4 вже дві пропущені стадії і прочитані дані з диску, які були записані попереднім job. 
- 	- Адаптивне вирівнювання partitions. 
-    - Оптимізація. Генерація адаптивного Java коду. 
-    - Внутрішня оптимізація partitions
+## In the second code, where an intermediate action collect is added, we observe 8 jobs
+Almost 3 additional jobs were created to execute this action:
+- Jobs 0 and 1 remain the same as in the previous case.
+- Jobs 2, 3, and 4 are the same as in the previous code, but they correspond to executing the added intermediate collect action.
+- Jobs 5, 6, and 7 are similar to the previous ones but correspond to the final collect action.
 
-## У другому коді, де добавлено проміжний action collect ми спостерігаємо 8 jobs
-Пратично 3 jobs були добавлені для виконання цієї акції
-- Job 0 та Job 1 такі самі як і в попередьому.
-- Jobs 2 , 3, 4 такі самі як і в попередьому коді, проте вони відносяться до виконання добавленої проміжної акції collect
-- Jobs 5 , 6, 7 такі самі як і попередні, але вони вже стосуються фінальної акції collect.
-
-## У третьому коді, де використовується cache ми спостерігаємо 7 jobs
-- Job 0 та Job 1 такі самі як і в попередьому.
-- Jobs 2 , 3, 4 теж схожі на попередній код, але добавлена одна task у кінці job 4:
-    - Внутрішня оптимізація partitions зі списком виконаного коду. Мабуть це процес кешування чи оптимізація одразу після кешування. 
-- Jobs 5 пропущені 2 стадії:
-    - Exchange - park перерозподіляє (shuffle) дані між partitions.
-    - WholeStageCodegen - генерація єдиного блоку Java-коду
-    - MapPartitionInternal - обробка даних на рівні partitions
-    - MapPartitionInternal (cache) - обробки кешованих даних
-    - InMemoryTableScan (cache) - зчитує дані з кешу Spark
-    - MapPartitionInternal - повторно після зчитування кешованих даних трансформації над partitions.
-
-- Jobs 6 схожа на попередню, теж пропущені 2 стадії:
-    - Exchange - park перерозподіляє (shuffle) дані між partitions.
-    - WholeStageCodegen - генерація єдиного блоку Java-коду
-    - MapPartitionInternal - обробка даних на рівні partitions
-    - MapPartitionInternal (cache) - обробки кешованих даних
-    - InMemoryTableScan (cache) - зчитує дані з кешу Spark
-    - WholeStageCodegen - генерація єдиного блоку Java-коду, мабуть для вмконання наших розрахунків (.where("count>2"))
-    - MapPartitionInternal - повторно після зчитування кешованих даних трансформації над partitions.
-
+## In the third code, where cache is used, we observe 7 jobs
+- Jobs 0 and 1 remain the same as in the previous case.
+- Jobs 2, 3, and 4 are also similar to the previous code, but one additional task is added at the end of Job 4:
+    - Internal partition optimization with a list of executed code. This is likely a caching process or an optimization step immediately after caching.
+Job 5 skips two stages:
+    - Exchange - Spark redistributes (shuffles) data between partitions
+    - WholeStageCodegen - Generates a single block of Java code
+    - MapPartitionInternal - Processes data at the partition level
+    - MapPartitionInternal (cache) - Processes cached data
+    - InMemoryTableScan (cache) - Reads data from the Spark cache
+    - MapPartitionInternal - Re-applies transformations on cached partitions after reading
+- Job 6 is similar to the previous one and also skips two stages:
+    - Exchange - Spark redistributes (shuffles) data between partitions
+    - WholeStageCodegen - Generates a single block of Java code
+    - MapPartitionInternal - Processes data at the partition level
+    - MapPartitionInternal (cache) - Processes cached data
+    - InMemoryTableScan (cache) - Reads data from the Spark cache
+    - WholeStageCodegen - Generates a single block of Java code, likely for executing our computations (.where("count>2"))
+    - MapPartitionInternal - Re-applies transformations on cached partitions after reading
